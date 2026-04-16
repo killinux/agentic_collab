@@ -63,7 +63,7 @@ def setup_client(type: str, config: dict):
   """Setup the OpenAI client.
 
   Args:
-      type (str): the type of client. Either "azure" or "openai".
+      type (str): the type of client. Either "azure", "openai", or "zhipu".
       config (dict): the configuration for the client.
 
   Raises:
@@ -82,6 +82,11 @@ def setup_client(type: str, config: dict):
     client = OpenAI(
       api_key=config["key"],
     )
+  elif type == "zhipu":
+    client = OpenAI(
+      api_key=config["key"],
+      base_url=config.get("base-url", "https://open.bigmodel.cn/api/paas/v4"),
+    )
   else:
     raise ValueError("Invalid client")
   return client
@@ -94,8 +99,13 @@ if openai_config["client"] == "azure":
   })
 elif openai_config["client"] == "openai":
   client = setup_client("openai", { "key": openai_config["model-key"] })
+elif openai_config["client"] == "zhipu":
+  client = setup_client("zhipu", {
+    "key": openai_config["model-key"],
+    "base-url": openai_config.get("model-base-url", "https://open.bigmodel.cn/api/paas/v4"),
+  })
 
-if openai_config["embeddings-client"] == "azure":  
+if openai_config["embeddings-client"] == "azure":
   embeddings_client = setup_client("azure", {
     "endpoint": openai_config["embeddings-endpoint"],
     "key": openai_config["embeddings-key"],
@@ -103,6 +113,11 @@ if openai_config["embeddings-client"] == "azure":
   })
 elif openai_config["embeddings-client"] == "openai":
   embeddings_client = setup_client("openai", { "key": openai_config["embeddings-key"] })
+elif openai_config["embeddings-client"] == "zhipu":
+  embeddings_client = setup_client("zhipu", {
+    "key": openai_config["embeddings-key"],
+    "base-url": openai_config.get("embeddings-base-url", "https://open.bigmodel.cn/api/paas/v4"),
+  })
 else:
   raise ValueError("Invalid embeddings client")
 
@@ -193,29 +208,32 @@ def ChatGPT_request(prompt):
 
 def ChatGPT_structured_request(prompt, response_format):
   """
-  Given a prompt and a dictionary of GPT parameters, make a request to OpenAI
-  server and returns the response. 
-  ARGS:
-    prompt: a str prompt
-    gpt_parameter: a python dictionary with the keys indicating the names of  
-                   the parameter and the values indicating the parameter 
-                   values.   
-  RETURNS: 
-    a str of GPT-3's response. 
+  Given a prompt and a response_format (Pydantic model), make a request to the
+  LLM and return a parsed Pydantic object.
+  Supports both OpenAI native structured outputs and compatible providers
+  (e.g. ZhipuAI/GLM) via JSON mode fallback.
   """
   # temp_sleep()
   print("--- ChatGPT_structured_request() ---")
   print("Prompt:", prompt, flush=True)
 
-  try: 
-    completion = client.beta.chat.completions.parse(
+  try:
+    # Build JSON schema hint for the prompt so the model knows the format
+    schema = response_format.model_json_schema()
+    schema_instruction = (
+      f"\n\nYou MUST respond with a JSON object that conforms to this schema:\n"
+      f"{json.dumps(schema, ensure_ascii=False)}\n"
+      f"Return ONLY valid JSON, no extra text."
+    )
+
+    completion = client.chat.completions.create(
       model=openai_config["model"],
-      response_format=response_format,
-      messages=[{"role": "user", "content": prompt}]
+      messages=[{"role": "user", "content": prompt + schema_instruction}],
+      response_format={"type": "json_object"},
     )
 
     print("Response:", completion, flush=True)
-    message = completion.choices[0].message
+    content = completion.choices[0].message.content
 
     cost_logger.update_cost(
       completion,
@@ -223,13 +241,12 @@ def ChatGPT_structured_request(prompt, response_format):
       output_cost=openai_config["model-costs"]["output"],
     )
 
-    if message.parsed:
-      return message.parsed
-    if message.refusal:
-      raise ValueError("Request refused: " + message.refusal)
-    raise ValueError("No parsed content or refusal found.")
+    if content:
+      parsed = response_format.model_validate_json(content)
+      return parsed
+    raise ValueError("No content from LLM.")
 
-  except Exception as e: 
+  except Exception as e:
     print(f"Error: {e}", flush=True)
     traceback.print_exc()
     return "LLM ERROR"
@@ -426,47 +443,37 @@ def GPT_request(prompt, gpt_parameter):
 
 def GPT_structured_request(prompt, gpt_parameter, response_format):
   """
-  Given a prompt, a dictionary of GPT parameters, and a response format, make a request to OpenAI
-  server and returns the response.
-  ARGS:
-    prompt: a str prompt
-    gpt_parameter: a python dictionary with the keys indicating the names of
-                   the parameter and the values indicating the parameter
-                   values.
-    response_format: a Pydantic model that defines the desired response format.
-  RETURNS:
-    a str of GPT-3's response.
+  Given a prompt, a dictionary of GPT parameters, and a response_format
+  (Pydantic model), make a request and return a parsed Pydantic object.
+  Uses JSON mode fallback for providers that don't support beta.parse().
   """
   temp_sleep()
 
   try:
-    if use_openai:
-      messages = [{
-        "role": "system", "content": prompt
-      }]
-      response = client.beta.chat.completions.parse(
-        model=gpt_parameter["engine"],
-        messages=messages,
-        response_format=response_format,
-        temperature=gpt_parameter["temperature"],
-        max_tokens=gpt_parameter["max_tokens"],
-        top_p=gpt_parameter["top_p"],
-        frequency_penalty=gpt_parameter["frequency_penalty"],
-        presence_penalty=gpt_parameter["presence_penalty"],
-        # stream=gpt_parameter["stream"],
-        stop=gpt_parameter["stop"],
-      )
-    else:
-      response = client.completions.create(model=model, prompt=prompt)
+    schema = response_format.model_json_schema()
+    schema_instruction = (
+      f"\n\nYou MUST respond with a JSON object that conforms to this schema:\n"
+      f"{json.dumps(schema, ensure_ascii=False)}\n"
+      f"Return ONLY valid JSON, no extra text."
+    )
+
+    messages = [{"role": "system", "content": prompt + schema_instruction}]
+    response = client.chat.completions.create(
+      model=gpt_parameter["engine"],
+      messages=messages,
+      response_format={"type": "json_object"},
+      temperature=gpt_parameter["temperature"],
+      max_tokens=gpt_parameter["max_tokens"],
+      top_p=gpt_parameter["top_p"],
+    )
 
     print("Response: ", response, flush=True)
-    message = response.choices[0].message
+    content = response.choices[0].message.content
 
-    if message.parsed:
-      return message.parsed
-    if message.refusal:
-      raise ValueError("Request refused: " + message.refusal)
-    raise ValueError("No parsed content or refusal found.")
+    if content:
+      parsed = response_format.model_validate_json(content)
+      return parsed
+    raise ValueError("No content from LLM.")
   except Exception as e:
     print("Error:", e, flush=True)
     traceback.print_exc()

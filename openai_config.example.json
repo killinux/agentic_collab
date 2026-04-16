@@ -1,0 +1,20 @@
+{
+  "client": "zhipu",
+  "model": "glm-4-flash",
+  "model-key": "YOUR_ZHIPU_API_KEY",
+  "model-base-url": "https://open.bigmodel.cn/api/paas/v4",
+  "model-costs": {
+    "input": 0.0,
+    "output": 0.0
+  },
+  "embeddings-client": "zhipu",
+  "embeddings": "embedding-3",
+  "embeddings-key": "YOUR_ZHIPU_API_KEY",
+  "embeddings-base-url": "https://open.bigmodel.cn/api/paas/v4",
+  "embeddings-costs": {
+    "input": 0.0,
+    "output": 0.0
+  },
+  "experiment-name": "glm-simulacra",
+  "cost-upperbound": 100.0
+}
