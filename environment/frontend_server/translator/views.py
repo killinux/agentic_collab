@@ -294,10 +294,20 @@ def send_environment(request):
         mqtt_client.publish(f"reverie/{sim_code}/environment", mqtt_data)
         return JsonResponse({"status": "success"})
       else:
-        env_file = f"{sim_folder}/environment/{step}.json"
-        with open(env_file, 'w') as f:
-          json.dump(environment, f, indent=2)
-        return JsonResponse({"status": "success"})
+        # Save environment data if provided
+        if environment:
+          env_file = f"{sim_folder}/environment/{step}.json"
+          with open(env_file, 'w') as f:
+            json.dump(environment, f, indent=2)
+
+        # Check if movement data exists for this step and return it
+        movement_file = f"storage/{sim_code}/movement/{step}.json"
+        if os.path.exists(movement_file):
+          with open(movement_file, 'r') as f:
+            movement_data = json.load(f)
+          movement_data["<step>"] = step
+          return JsonResponse(movement_data)
+        return JsonResponse({"status": "waiting"})
 
     except Exception as e:
       return JsonResponse({"error": str(e)}, status=500)
