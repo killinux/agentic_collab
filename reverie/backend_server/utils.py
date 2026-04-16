@@ -25,7 +25,7 @@ debug = True
 _base = Path(__file__).resolve().parent.parent.parent
 
 maze_assets_loc = str(_base / "environment" / "frontend_server" / "static_dirs" / "assets")
-env_matrix = str(_base / "environment" / "frontend_server" / "static_dirs" / "the_ville")
+env_matrix = str(_base / "environment" / "frontend_server" / "static_dirs" / "assets" / "the_ville" / "matrix")
 fs_storage = str(_base / "environment" / "frontend_server" / "storage")
 fs_temp_storage = str(_base / "environment" / "frontend_server" / "temp_storage")
 
