@@ -170,30 +170,37 @@ def home(request):
   return render(request, template, context)
 
 
-def replay(request, sim_code, step): 
+def replay(request, sim_code, step):
   sim_code = sim_code
   step = int(step)
 
   persona_names = []
   persona_names_set = set()
-  for i in find_filenames(f"storage/{sim_code}/personas", ""): 
+  for i in find_filenames(f"storage/{sim_code}/personas", ""):
     x = i.split("/")[-1].strip()
-    if x[0] != ".": 
-      persona_names += [[x, x.replace(" ", "_")]]
-      persona_names_set.add(x)
+    if x[0] != ".":
+      if os.path.isdir(i):
+        persona_names += [[x, x.replace(" ", "_")]]
+        persona_names_set.add(x)
 
+  # Use the movement file at the starting step to set initial positions
   persona_init_pos = []
-  file_count = []
-  for i in find_filenames(f"storage/{sim_code}/environment", ".json"):
-    x = i.split("/")[-1].strip()
-    if x[0] != ".": 
-      file_count += [int(x.split(".")[0])]
-  curr_json = f'storage/{sim_code}/environment/{str(max(file_count))}.json'
-  with open(curr_json) as json_file:  
-    persona_init_pos_dict = json.load(json_file)
-    for key, val in persona_init_pos_dict.items(): 
-      if key in persona_names_set: 
-        persona_init_pos += [[key, val["x"], val["y"]]]
+  movement_file = f'storage/{sim_code}/movement/{step}.json'
+  if os.path.exists(movement_file):
+    with open(movement_file) as json_file:
+      movement_data = json.load(json_file)
+    for key, val in movement_data.get("persona", {}).items():
+      if key in persona_names_set:
+        persona_init_pos += [[key, val["movement"][0], val["movement"][1]]]
+  else:
+    # Fallback to environment file
+    env_file = f'storage/{sim_code}/environment/{step}.json'
+    if os.path.exists(env_file):
+      with open(env_file) as json_file:
+        persona_init_pos_dict = json.load(json_file)
+      for key, val in persona_init_pos_dict.items():
+        if key in persona_names_set:
+          persona_init_pos += [[key, val["x"], val["y"]]]
 
   context = {"sim_code": sim_code,
              "step": step,
@@ -302,11 +309,14 @@ def send_environment(request):
 
         # Check if movement data exists for this step and return it
         movement_file = f"storage/{sim_code}/movement/{step}.json"
+        print(f"[DEBUG] send_environment: sim_code={sim_code}, step={step}, file={movement_file}, exists={os.path.exists(movement_file)}", flush=True)
         if os.path.exists(movement_file):
           with open(movement_file, 'r') as f:
             movement_data = json.load(f)
           movement_data["<step>"] = step
+          print(f"[DEBUG] returning movement data for step {step}", flush=True)
           return JsonResponse(movement_data)
+        print(f"[DEBUG] no movement file found", flush=True)
         return JsonResponse({"status": "waiting"})
 
     except Exception as e:
@@ -332,33 +342,24 @@ def get_movements(request):
   
   if request.method == 'GET':
     try:
-      data = json.loads(request.body)
+      # Try to parse body (may be empty for browser GET requests)
+      if request.body:
+        data = json.loads(request.body)
+      else:
+        data = {}
       step = data.get('step')
       sim_code = data.get('sim_code')
 
-      # If using MQTT, require MQTT to be available
-      if settings.USE_MQTT:
-        if not mqtt_client or not mqtt_client.is_connected:
-          raise RuntimeError("MQTT is enabled but client is not connected")
+      if not step or not sim_code:
+        return JsonResponse({"status": "no data"})
 
-        # Subscribe to movement topic if not already subscribed
-        topic = f"reverie/{sim_code}/movement"
-        if topic not in mqtt_client._handlers:
-          mqtt_client.subscribe(topic, _handle_movement_update)
-
-        # Check if we have movement data for this step
-        if movement_data and movement_data.get("step") == step:
-          return JsonResponse(movement_data)
-        return JsonResponse({"<step>": step})
-
-      else:
-        # File-based communication if MQTT is disabled
-        movement_file = f"storage/{sim_code}/movement/{step}.json"
-        if os.path.exists(movement_file):
-          with open(movement_file, 'r') as f:
-            movement_data = json.load(f)
-          return JsonResponse(movement_data)
-        return JsonResponse({"<step>": step})
+      # File-based communication
+      movement_file = f"storage/{sim_code}/movement/{step}.json"
+      if os.path.exists(movement_file):
+        with open(movement_file, 'r') as f:
+          movement_data = json.load(f)
+        return JsonResponse(movement_data)
+      return JsonResponse({"<step>": step})
 
     except Exception as e:
       return JsonResponse({"error": str(e)}, status=500)
