@@ -457,7 +457,7 @@ def GPT_structured_request(prompt, gpt_parameter, response_format):
       f"Return ONLY valid JSON, no extra text."
     )
 
-    messages = [{"role": "system", "content": prompt + schema_instruction}]
+    messages = [{"role": "user", "content": prompt + schema_instruction}]
     response = client.chat.completions.create(
       model=gpt_parameter["engine"],
       messages=messages,
