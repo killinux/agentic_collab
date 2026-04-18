@@ -30,6 +30,10 @@ def create_prompt(prompt_input: dict[str, Any]):
 
   In general, {lifestyle}
   Today is {curr_date}. Describe {persona_name}'s plan for the whole day, from morning 'til night, in broad-strokes. Include the time of the day. e.g., "wake up and complete their morning routine at {wake_up_hour}", "have lunch at 12:00 pm", "watch TV from 7 to 8 pm".
+
+  IMPORTANT:
+  1. 日程列表每一条必须用简体中文描写(保留原有时间格式,例如 "8:00 am")。
+  2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
   """
 
   return prompt

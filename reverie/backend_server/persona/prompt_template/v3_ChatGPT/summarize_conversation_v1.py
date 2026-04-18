@@ -18,6 +18,10 @@ def create_prompt(prompt_input: dict[str, Any]):
 
 Summarize the conversation above in one sentence, using {persona_name} as the subject.
 Start the sentence with "{persona_name} is talking to"
+
+IMPORTANT:
+1. The summary must be written in 简体中文 (Simplified Chinese).
+2. Keep people's names and place names in their original English form (e.g., Isabella, Klaus, Maria, Hobbs Cafe, Oak Hill College).
 """
   return prompt
 
@@ -53,7 +57,7 @@ def run_gpt_prompt_summarize_conversation(
   #     return False
 
   def get_fail_safe():
-    return "talking to a housemate about morning greetings"
+    return "在和室友打招呼"
 
   # ChatGPT Plugin ===========================================================
   def __chat_func_clean_up(gpt_response: ConversationSummary, prompt=""):
@@ -63,6 +67,7 @@ def run_gpt_prompt_summarize_conversation(
       .removeprefix(persona.scratch.name)
       .strip()
       .removeprefix("is")
+      .removeprefix("在")
       .strip()
     )
     return stripped_summary
@@ -88,8 +93,8 @@ def run_gpt_prompt_summarize_conversation(
   prompt_file = get_prompt_file_path(__file__)
   prompt_input = create_prompt_input(conversation, test_input)
   prompt = create_prompt(prompt_input)
-  example_output = "Isabella is talking to Klaus about what to eat for lunch."
-  special_instruction = "Do not miss any important details, including who is chatting."
+  example_output = "Isabella 在和 Klaus 聊午餐吃什么。"
+  special_instruction = "Do not miss any important details, including who is chatting. 请用简体中文输出,人名地名保留英文。"
   fail_safe = get_fail_safe()
   output = ChatGPT_safe_generate_structured_response(
     prompt,

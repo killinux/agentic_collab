@@ -21,6 +21,10 @@ def create_prompt(prompt_input: dict[str, Any]):
 
 Write down if there is anything from the conversation that {persona_name} might have found interesting from {persona_name}'s perspective, in a full sentence.
 Start the sentence with {persona_name}'s name.
+
+IMPORTANT:
+1. 请用简体中文输出这句话。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
 """
   return prompt
 

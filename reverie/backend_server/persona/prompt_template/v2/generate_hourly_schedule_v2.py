@@ -30,6 +30,11 @@ Here is the originally intended hourly breakdown of {persona_name}'s schedule to
 {existing_schedule}
 {extra_instructions}
 {prompt_ending}
+
+IMPORTANT:
+1. activity 字段必须用简体中文描写。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
+3. datetime 保持原时间格式。
 """
   return prompt
 

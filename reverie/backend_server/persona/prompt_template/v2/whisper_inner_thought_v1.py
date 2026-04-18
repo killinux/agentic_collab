@@ -17,6 +17,10 @@ Translate the following thought into a statement about {persona_name}.
 
 Thought: "{thought}"
 Statement: "
+
+IMPORTANT:
+1. 请用简体中文输出 statement。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
 """
   return prompt
 

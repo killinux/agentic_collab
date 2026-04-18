@@ -19,9 +19,14 @@ Input:
 What {num_insights} high-level insights can you infer from the above statements?
 Cite the statements that support each insight by number.
 (example format: {{
-  "insight": "This is a high-level insight",
+  "insight": "这里是一条高层次的洞察",
   "because_of": [1, 5, 3]
 }})
+
+IMPORTANT:
+1. insight 字段必须用简体中文。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
+3. because_of 保持数字数组原格式。
 """
   return prompt
 

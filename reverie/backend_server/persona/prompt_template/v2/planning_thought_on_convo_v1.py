@@ -24,6 +24,10 @@ def create_prompt(prompt_input: dict[str, Any]):
 [End of {persona_name}'s current daily plan]
 
 Write down if there is anything from the conversation that {persona_name} needs to remember for their planning, from {persona_name}'s perspective, in a full sentence. Take their current daily plan into account. Start the sentence with {persona_name}'s name.
+
+IMPORTANT:
+1. 请用简体中文输出这句话。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
 """
   return prompt
 

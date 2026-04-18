@@ -43,6 +43,11 @@ In 5 min increments, list the subtasks Kelly does when Kelly is working on the n
 {identity_stable_set}
 {broad_schedule_summary}
 In 5 min increments, list the subtasks {persona_firstname} does when {persona_firstname} is {action} from {action_time_range} (total duration in minutes: {action_duration}). Use present progressive tense (e.g., "printing the lesson plan").
+
+IMPORTANT:
+1. task 字段必须用简体中文描写(进行时,例如"正在打印课件")。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
+3. duration 与 minutes_left 保持数字原格式。
 """
   return prompt
 

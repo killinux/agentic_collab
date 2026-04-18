@@ -18,6 +18,10 @@ Let's think step by step.
 We want to know about the state of the {object}.
 Step 1. {persona_name} is {persona_action}.
 Step 2. Describe the state of the {object}: {object} is <fill in>
+
+IMPORTANT:
+1. 描述必须用简体中文填写。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
 """
   return prompt
 

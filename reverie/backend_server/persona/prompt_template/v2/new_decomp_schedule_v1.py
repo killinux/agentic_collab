@@ -29,6 +29,11 @@ But {persona_name} unexpectedly ended up {new_action} for {new_action_duration} 
 
 Revised schedule:
 {new_schedule_start}
+
+IMPORTANT:
+1. main_task 与 subtask 必须用简体中文描写(进行时,例如"正在整理笔记")。
+2. 人名、地名、店名(如 Isabella、Klaus、Maria、Hobbs Cafe、Oak Hill College)保留英文原文。
+3. start_time、end_time 保持原时间格式。
 """
   return prompt
 
