@@ -4,11 +4,18 @@ and Klaus using the real prompt pipeline. Run from backend_server/:
 
     python3 demo_zh_chat.py
 """
-import sys, os
+import sys, os, io, contextlib
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from persona.prompt_template.gpt_structure import ChatGPT_safe_generate_structured_response
 from persona.prompt_template.v3_ChatGPT.iterative_convo_v1 import ChatUtterance, create_prompt
+
+
+@contextlib.contextmanager
+def _silent():
+    """Suppress the backend's verbose prompt/response debug prints."""
+    with contextlib.redirect_stdout(io.StringIO()):
+        yield
 
 ISABELLA = "Isabella Rodriguez 是 Hobbs Cafe 的老板,友善外向,喜欢让顾客有宾至如归的感觉。她在筹备 2 月 14 日下午 5 点的情人节派对。"
 KLAUS = "Klaus Mueller 是 Oak Hill 学院社会学学生,正在写一篇关于士绅化的研究论文。"
@@ -29,10 +36,11 @@ def gen(speaker_name, listener_name, speaker_iss, listener_iss, convo_so_far, si
     def validate(resp, prompt=""): return isinstance(resp, ChatUtterance)
     def clean(resp, prompt=""): return {"utterance": resp.utterance, "end": resp.did_conversation_end}
     fail_safe = {"utterance": "...", "end": False}
-    return ChatGPT_safe_generate_structured_response(
-        prompt, ChatUtterance, repeat=3,
-        fail_safe_response=fail_safe, func_validate=validate, func_clean_up=clean,
-    )
+    with _silent():
+        return ChatGPT_safe_generate_structured_response(
+            prompt, ChatUtterance, repeat=3,
+            fail_safe_response=fail_safe, func_validate=validate, func_clean_up=clean,
+        )
 
 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 print("  DEMO: 伊莎贝拉 ↔ 克劳斯 在 Hobbs Cafe 的对话")
