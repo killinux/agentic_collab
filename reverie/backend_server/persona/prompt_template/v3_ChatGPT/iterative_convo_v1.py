@@ -41,7 +41,10 @@ Current Context:
 ---
 Task: Given the above, what should {init_persona_name} say to {target_persona_name} next in the conversation? And will it end the conversation?
 
-IMPORTANT: The utterance must be written in 简体中文 (Simplified Chinese). 其他字段保持原格式。
+IMPORTANT:
+1. The utterance must be written in 简体中文 (Simplified Chinese).
+2. Keep proper nouns (people's names, place names, brand names — e.g. Isabella, Klaus, Maria, Hobbs Cafe, Oak Hill College) in their original English form. Do NOT transliterate them into Chinese characters.
+3. 其他字段保持原格式。
 """
   return prompt
 
