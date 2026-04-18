@@ -14,6 +14,7 @@ logs/*
 
 ### Add simulations to keep here ###
 !environment/frontend_server/storage/base_the_ville_isabella_maria_klaus/
+!environment/frontend_server/storage/base_the_ville_zh_isabella_maria_klaus/
 !environment/frontend_server/storage/base_the_ville_n25/*
 !environment/frontend_server/storage/July1_the_ville_isabella_maria_klaus-step-3-*/*
 !environment/frontend_server/storage/skip-morning-s-14/

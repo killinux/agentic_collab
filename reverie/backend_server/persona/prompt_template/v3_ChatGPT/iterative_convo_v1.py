@@ -40,6 +40,8 @@ Current Context:
 
 ---
 Task: Given the above, what should {init_persona_name} say to {target_persona_name} next in the conversation? And will it end the conversation?
+
+IMPORTANT: The utterance must be written in 简体中文 (Simplified Chinese). 其他字段保持原格式。
 """
   return prompt
 
