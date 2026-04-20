@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记忆系统架构 - Generative Agents</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; color: #333; background: #f5f7fa; padding: 16px; }
+.container { max-width: 800px; margin: 0 auto; }
+h1 { font-size: 24px; text-align: center; margin: 20px 0; color: #1a1a1a; }
+h2 { font-size: 20px; margin: 24px 0 12px; padding-left: 12px; border-left: 4px solid #4a90d9; color: #2c3e50; }
+h3 { font-size: 17px; margin: 16px 0 8px; color: #34495e; }
+h4 { font-size: 15px; margin: 12px 0 6px; color: #555; }
+h5 { font-size: 14px; margin: 10px 0 4px; color: #666; }
+p { margin: 8px 0; font-size: 15px; }
+.card { background: #fff; border-radius: 12px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card-blue { border-left: 4px solid #4a90d9; }
+.card-green { border-left: 4px solid #27ae60; }
+.card-orange { border-left: 4px solid #f39c12; }
+.card-purple { border-left: 4px solid #8e44ad; }
+table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 14px; }
+th { background: #f0f4f8; padding: 8px; text-align: left; border-bottom: 2px solid #ddd; }
+td { padding: 8px; border-bottom: 1px solid #eee; }
+code { background: #f0f4f8; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: "SF Mono", "Fira Code", monospace; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; margin: 8px 0; }
+.flow { background: #eef6ff; border-radius: 8px; padding: 12px; margin: 12px 0; font-size: 14px; }
+.flow-arrow { color: #4a90d9; font-weight: bold; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin: 2px; }
+.tag-event { background: #e8f5e9; color: #2e7d32; }
+.tag-thought { background: #e3f2fd; color: #1565c0; }
+.tag-chat { background: #fce4ec; color: #c62828; }
+.highlight { background: #fff3cd; padding: 8px 12px; border-radius: 8px; margin: 8px 0; font-size: 14px; }
+.diagram { text-align: center; padding: 16px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🧠 记忆系统架构</h1>
+<p style="text-align:center; color:#666; font-size:14px;">基于斯坦福 Generative Agents 论文</p>
+
+<h2>总体数据流</h2>
+<div class="flow">
+<strong>感知</strong>(perceive) <span class="flow-arrow">→</span> 新事件存入联想记忆
+<br><span class="flow-arrow">↓</span>
+<br><strong>检索</strong>(retrieve) <span class="flow-arrow">→</span> 三维加权找最相关的 30 条记忆
+<br><span class="flow-arrow">↓</span>
+<br><strong>规划</strong>(plan) <span class="flow-arrow">→</span> 基于检索结果制定日程
+<br><span class="flow-arrow">↓</span>
+<br><strong>反思</strong>(reflect) <span class="flow-arrow">→</span> 重要性累积触发，产生高层想法
+<br><span class="flow-arrow">↓</span>
+<br><strong>执行</strong>(execute) <span class="flow-arrow">→</span> 角色移动、互动
+<br><span class="flow-arrow">↓</span>
+<br><strong>对话</strong>(converse) <span class="flow-arrow">→</span> 基于记忆和情境生成对话
+</div>
+
+<h2>三层记忆结构</h2>
+
+<div class="card card-blue">
+<h3>1. 联想记忆（长期记忆）</h3>
+<p><code>memory_structures/associative_memory.py</code></p>
+<p>每条记忆是一个 <strong>ConceptNode</strong>，有三种类型：</p>
+<p>
+<span class="tag tag-event">event 事件</span>
+<span class="tag tag-thought">thought 想法</span>
+<span class="tag tag-chat">chat 对话</span>
+</p>
+
+<h4>节点字段</h4>
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td><code>node_id</code></td><td>唯一标识，如 "node_1"</td></tr>
+<tr><td><code>type</code></td><td>event / thought / chat</td></tr>
+<tr><td><code>subject / predicate / object</code></td><td>三元组，如 "Isabella - 正在准备 - 派对"</td></tr>
+<tr><td><code>description</code></td><td>完整文字描述</td></tr>
+<tr><td><code>poignancy</code></td><td>重要性 1-10（LLM 打分）</td></tr>
+<tr><td><code>embedding_key</code></td><td>用于生成 1536 维嵌入向量的文本</td></tr>
+<tr><td><code>keywords</code></td><td>关键词集合，用于快速索引</td></tr>
+<tr><td><code>filling</code></td><td>证据链（想法→原始记忆）</td></tr>
+<tr><td><code>created / last_accessed</code></td><td>创建时间 / 最后检索时间</td></tr>
+</table>
+
+<h4>索引结构</h4>
+<table>
+<tr><th>结构</th><th>用途</th></tr>
+<tr><td><code>seq_event / seq_thought / seq_chat</code></td><td>按时间排序的列表</td></tr>
+<tr><td><code>kw_to_event / kw_to_thought</code></td><td>关键词 → 记忆索引</td></tr>
+<tr><td><code>kw_strength_event</code></td><td>关键词频次（触发反思）</td></tr>
+<tr><td><code>embeddings</code></td><td>文本 → 1536 维向量缓存</td></tr>
+</table>
+</div>
+
+<div class="card card-green">
+<h3>2. 工作记忆（短期记忆）</h3>
+<p><code>memory_structures/scratch.py</code></p>
+
+<h4>身份信息</h4>
+<p>name, age, innate（天生特质）, learned（习得特质）, currently（当前状态）, lifestyle（作息）</p>
+
+<h4>感知参数</h4>
+<table>
+<tr><th>参数</th><th>默认值</th><th>含义</th></tr>
+<tr><td><code>vision_r</code></td><td>4</td><td>视野半径（格）</td></tr>
+<tr><td><code>att_bandwidth</code></td><td>3</td><td>每步最多感知事件数</td></tr>
+<tr><td><code>retention</code></td><td>5</td><td>不重复感知的窗口</td></tr>
+</table>
+
+<h4>反思控制</h4>
+<table>
+<tr><th>参数</th><th>值</th><th>含义</th></tr>
+<tr><td><code>importance_trigger_max</code></td><td>150</td><td>计数器最大值</td></tr>
+<tr><td><code>importance_trigger_curr</code></td><td>递减</td><td>减到 0 触发反思</td></tr>
+<tr><td><code>recency_decay</code></td><td>0.99</td><td>时近性衰减率</td></tr>
+</table>
+
+<h4>当前状态</h4>
+<p>日程(daily_req)、当前行动(act_description)、对话状态(chatting_with, chat)</p>
+</div>
+
+<div class="card card-orange">
+<h3>3. 空间记忆</h3>
+<p><code>memory_structures/spatial_memory.py</code></p>
+<p>层级树结构，角色只记住去过/看到过的地方：</p>
+<pre>
+世界（the Ville）
+  └─ 区域（Hobbs Cafe）
+       └─ 房间（cafe）
+            └─ 物品（counter, table, coffee machine）
+</pre>
+</div>
+
+<h2>核心算法</h2>
+
+<div class="card card-purple">
+<h3>记忆检索</h3>
+<p><code>cognitive_modules/retrieve.py</code></p>
+<p>对每条记忆打三个分，加权求和后取 top-30：</p>
+<table>
+<tr><th>维度</th><th>计算方法</th><th>权重</th></tr>
+<tr><td><strong>时近性</strong> Recency</td><td><code>0.99 ^ 位置序号</code></td><td>×0.5</td></tr>
+<tr><td><strong>相关性</strong> Relevance</td><td>余弦相似度</td><td><strong>×3</strong>（最重要）</td></tr>
+<tr><td><strong>重要性</strong> Importance</td><td>poignancy 分数</td><td>×2</td></tr>
+</table>
+<div class="highlight">
+<strong>公式：</strong> score = recency×0.5 + relevance×3.0 + importance×2.0<br>
+语义匹配是第一优先级，其次是重要事件，最后是时间远近。
+</div>
+</div>
+
+<div class="card card-blue">
+<h3>感知流程</h3>
+<p><code>cognitive_modules/perceive.py</code></p>
+<h5>Step 1：获取视野内事件</h5>
+<p>扫描 vision_r=4 格范围内的 tile，按距离排序取最近 3 个</p>
+<h5>Step 2：新颖性检查</h5>
+<p>跳过最近 retention=5 条内已感知的事件</p>
+<h5>Step 3：存储</h5>
+<p>生成嵌入向量 → LLM 打重要性分 → 存入联想记忆 → 递减反思计数器</p>
+</div>
+
+<div class="card card-green">
+<h3>反思流程</h3>
+<p><code>cognitive_modules/reflect.py</code></p>
+<h5>触发条件</h5>
+<p><code>importance_trigger_curr ≤ 0</code>（感知事件的重要性累积到阈值）</p>
+<h5>Step 1：生成焦点问题</h5>
+<p>LLM 从最近高重要性记忆中提取 3 个值得思考的主题</p>
+<h5>Step 2：检索相关记忆</h5>
+<p>对每个焦点问题用三维检索找 top-30 记忆</p>
+<h5>Step 3：生成洞察</h5>
+<p>LLM 基于检索的记忆产生新想法，存为 thought 节点</p>
+<h5>Step 4：链接证据</h5>
+<p>新想法的 filling 字段指向产生它的原始记忆</p>
+<h5>Step 5：重置计数器</h5>
+<p>importance_trigger_curr = 150，等待下一轮</p>
+</div>
+
+<h2>涌现行为的产生</h2>
+<div class="card card-orange">
+<p><strong>关键机制：</strong></p>
+<p>1. 每个角色<strong>独立</strong>运行完整的认知循环</p>
+<p>2. 角色之间唯一的信息交换：同一空间感知 + 对话</p>
+<p>3. 记忆检索 + 反思让角色能联系不同事件产生洞察</p>
+<p>4. 多角色各自独立做出一致决策 → <strong>涌现行为</strong></p>
+
+<div class="highlight">
+<strong>例子：</strong>Isabella 分别告诉 Klaus 和 Maria "下午 1 点在 Hobbs Cafe"。两人各自存入记忆，规划日程时检索到它，于是三人都出现在同一时间同一地点——没有中央调度，完全自发协调。
+</div>
+</div>
+
+<h2>文件磁盘格式</h2>
+<div class="card card-purple">
+<h4>存储目录结构</h4>
+<pre>
+storage/&lt;sim_name&gt;/personas/&lt;Name&gt;/bootstrap_memory/
+├── scratch.json              # 工作记忆（JSON 对象）
+├── spatial_memory.json       # 空间记忆（嵌套 JSON 树）
+└── associative_memory/
+    ├── nodes.json            # 所有记忆节点（JSON 对象）
+    ├── embeddings.json       # 文本→向量映射（JSON 对象）
+    └── kw_strength.json      # 关键词频次（JSON 对象）
+</pre>
+
+<h4>nodes.json 示例</h4>
+<pre>
+{
+  "node_5": {
+    "node_count": 5,
+    "type": "thought",
+    "depth": 1,
+    "created": "2023-02-13 00:00:00",
+    "subject": "Isabella Rodriguez",
+    "predicate": "plan",
+    "object": "Valentine's Day party",
+    "description": "应该邀请 Klaus 来派对讨论社区话题",
+    "poignancy": 7,
+    "keywords": ["plan", "party"],
+    "filling": ["node_1", "node_3"]
+  }
+}
+</pre>
+
+<h4>embeddings.json 示例</h4>
+<pre>
+{
+  "Isabella is preparing for the party": [0.012, -0.034, 0.056, ...]
+}
+// 每个值是 1536 维浮点数组
+</pre>
+</div>
+
+<h2>关键代码路径</h2>
+<div class="card">
+<table>
+<tr><th>文件</th><th>功能</th></tr>
+<tr><td><code>memory_structures/associative_memory.py</code></td><td>长期记忆存储与索引</td></tr>
+<tr><td><code>memory_structures/scratch.py</code></td><td>工作记忆</td></tr>
+<tr><td><code>memory_structures/spatial_memory.py</code></td><td>空间记忆树</td></tr>
+<tr><td><code>cognitive_modules/perceive.py</code></td><td>感知 → 记忆存储</td></tr>
+<tr><td><code>cognitive_modules/retrieve.py</code></td><td>三维加权检索</td></tr>
+<tr><td><code>cognitive_modules/reflect.py</code></td><td>反思 → 洞察生成</td></tr>
+<tr><td><code>cognitive_modules/plan.py</code></td><td>基于记忆的日程规划</td></tr>
+<tr><td><code>cognitive_modules/converse.py</code></td><td>基于记忆的对话生成</td></tr>
+<tr><td><code>prompt_template/gpt_structure.py</code></td><td>LLM 调用 + embedding</td></tr>
+</table>
+</div>
+
+<p style="text-align:center; color:#999; font-size:12px; margin-top:24px;">
+agentic_collab · 基于 Stanford Generative Agents 论文实现
+</p>
+
+</div>
+</body>
+</html>
