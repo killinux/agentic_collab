@@ -61,9 +61,33 @@ http://49.233.189.223:8000/replay_persona_state/verify-zh-2day-s-24-4799-4999/48
 | 第 1 步 | 创建 `base_the_ville_zh_n25` 目录 | ✓ 完成 |
 | 第 2 步 | 翻译 25 个角色 scratch.json | ✓ 完成（`4f65f053`） |
 | 第 3 步 | 提交 + 推送 + 腾讯云同步 | ✓ 完成 |
-| 第 4 步 | 冒烟测试（demo_zh_chat.py） | 待执行 |
-| 第 5 步 | 启动 3000 步仿真 | 待执行 |
-| 第 6 步 | 检查结果 | 待执行 |
+| 第 4 步 | 冒烟测试（demo_zh_chat.py） | ✓ 通过 |
+| 第 5 步 | 启动 25 人 3000 步仿真 | ✓ 跑了 533 步后停止（太慢，8步/小时） |
+| 第 6 步 | 检查结果 | ✓ 涌现行为已验证（多角色独立规划一致日程） |
+| 第 7 步 | 创建 7 人精简版 `base_the_ville_zh_n7` | ✓ 完成 |
+| 第 8 步 | 启动 7 人 3000 步仿真 | 待执行 |
+| 第 9 步 | 检查结果 | 待执行 |
+
+### 25 人版结论
+
+跑了 8 小时 / 533 步，GLM API 延迟 ~30 秒/次，25 人不可行。但已验证：
+- 中文化效果正确，全中文日程 + 规划
+- 涌现行为存在（多角色独立规划出一致的 Hobbs Cafe 会议日程）
+- 0 个 1214 错误，失败率 10%
+
+### 7 人精简版方案
+
+从 25 人中挑选 7 个有故事关系的角色，预计 ~100 步/小时，30 小时跑完。
+
+| 角色 | 身份 | 故事线 |
+|---|---|---|
+| Isabella Rodriguez | Hobbs Cafe 老板 | 情人节派对 |
+| Klaus Mueller | 社会学学生 | 士绅化研究 |
+| Maria Lopez | 物理学生/主播 | 社交活跃 |
+| Sam Moore | 退役军官 | 竞选市长 |
+| Tom Moreno | 杂货店主 | 反对 Sam |
+| John Lin | 药剂师 | 关注选举 |
+| Abigail Chen | 数字艺术家 | 与 Isabella 合作 |
 
 ## 已解决的悬而未决
 
@@ -77,7 +101,9 @@ http://49.233.189.223:8000/replay_persona_state/verify-zh-2day-s-24-4799-4999/48
 - 冒烟测试脚本:`scripts/smoke-test.sh`
 - 单元测试脚本:`reverie/backend_server/demo_zh_chat.py`
 - 25 人中文 base 仿真:`environment/frontend_server/storage/base_the_ville_zh_n25/`
+- 7 人精简版 base 仿真:`environment/frontend_server/storage/base_the_ville_zh_n7/`
 - 翻译脚本:`scripts/translate_n25.py`
+- 记忆架构文档:`docs/memory-architecture.md`（及 `.html` H5 版）
 
 ## 回来了怎么快速回到状态
 
