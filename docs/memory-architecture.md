@@ -153,14 +153,75 @@ poignancy × (1 - decay_rate) ^ 经过的秒数
 
 ---
 
-## 嵌入向量
+## 嵌入向量（embeddings.json）
 
 **文件**：`persona/prompt_template/gpt_structure.py` 中的 `get_embedding()`
 
-- 调用 embedding API（OpenAI text-embedding-3-small 或智谱等）
-- 返回 1536 维向量
-- 缓存在 `persona.a_mem.embeddings` 字典中避免重复调用
-- 用于计算余弦相似度：`dot(a, b) / (norm(a) × norm(b))`
+### 生成时机
+
+`embeddings.json` 不是预先生成的，而是仿真运行过程中**逐条生成、逐条追加**：
+
+- **感知时**：角色看到新事件（如"bed is idle"），为事件描述生成向量
+- **反思时**：角色产生新想法，为想法文本生成向量
+- **检索时**：为查询的焦点问题生成向量，用于和已有记忆做余弦相似度比较
+
+### 生成过程
+
+```python
+# gpt_structure.py
+def get_embedding(text):
+    text = text.replace("\n", " ")
+    response = embeddings_client.embeddings.create(
+        input=[text],
+        model="text-embedding-3-small"  # 或智谱的 embedding 模型
+    )
+    return response.data[0].embedding  # 向量（维度取决于模型）
+```
+
+调一次 embedding API，返回一个浮点数组（OpenAI 模型 1536 维，智谱 GLM 模型 2048 维）。
+
+### 缓存机制
+
+生成后存入内存字典，避免重复调用 API：
+
+```python
+# perceive.py 中
+if desc in persona.a_mem.embeddings:
+    event_embedding = persona.a_mem.embeddings[desc]  # 命中缓存
+else:
+    event_embedding = get_embedding(desc)              # 调 API
+```
+
+### 持久化
+
+每次 checkpoint（每 200 步），整个 embeddings 字典序列化写入磁盘：
+
+```json
+// embeddings.json 示例
+{
+  "bed is idle": [0.012, -0.034, 0.056, ...],
+  "Sam Moore is idle": [-0.008, 0.021, 0.044, ...],
+  "Klaus is writing a research paper": [0.031, -0.015, ...]
+}
+```
+
+每个 key 是记忆原文，value 是对应的向量数组。
+
+### 起始与增长
+
+- 初始 `embeddings.json` 为空 `{}`
+- 随仿真推进逐步累积：角色每感知/思考/对话一次就多一条
+- 实测 25 人仿真跑 500 步后，最活跃角色（Sam Moore，最早起床）有 51 条，约 1.4MB；其他角色 7-30 条不等
+
+### 余弦相似度
+
+检索时用嵌入向量计算语义相似度：
+
+```python
+cos_sim(a, b) = dot(a, b) / (norm(a) × norm(b))
+# 返回 [-1, 1]，通常 [0, 1]
+# 1.0 = 语义完全一致，0.0 = 完全无关
+```
 
 ---
 
