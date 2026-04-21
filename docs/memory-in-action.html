@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记忆系统实战：Tom Moreno 的一天</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.7; color: #333; background: #f5f7fa; padding: 16px; }
+.container { max-width: 800px; margin: 0 auto; }
+h1 { font-size: 22px; text-align: center; margin: 20px 0 8px; color: #1a1a1a; }
+.subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 20px; }
+h2 { font-size: 19px; margin: 28px 0 12px; padding-left: 12px; border-left: 4px solid #4a90d9; color: #2c3e50; }
+h3 { font-size: 16px; margin: 14px 0 6px; color: #34495e; }
+h4 { font-size: 14px; margin: 10px 0 4px; color: #555; }
+p { margin: 8px 0; font-size: 14px; }
+.card { background: #fff; border-radius: 12px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card-blue { border-left: 4px solid #4a90d9; }
+.card-green { border-left: 4px solid #27ae60; }
+.card-orange { border-left: 4px solid #f39c12; }
+.card-purple { border-left: 4px solid #8e44ad; }
+.card-red { border-left: 4px solid #e74c3c; }
+table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+th { background: #f0f4f8; padding: 8px; text-align: left; border-bottom: 2px solid #ddd; }
+td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+code { background: #f0f4f8; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: "SF Mono", "Fira Code", monospace; }
+pre { background: #2d2d2d; color: #f8f8f2; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; margin: 8px 0; line-height: 1.5; }
+.flow { background: #eef6ff; border-radius: 8px; padding: 12px; margin: 12px 0; font-size: 13px; line-height: 1.8; }
+.flow-arrow { color: #4a90d9; font-weight: bold; }
+.highlight { background: #fff3cd; padding: 8px 12px; border-radius: 8px; margin: 8px 0; font-size: 13px; }
+.highlight-blue { background: #e3f2fd; padding: 8px 12px; border-radius: 8px; margin: 8px 0; font-size: 13px; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin: 2px; }
+.tag-event { background: #e8f5e9; color: #2e7d32; }
+.tag-thought { background: #e3f2fd; color: #1565c0; }
+.tag-chat { background: #fce4ec; color: #c62828; }
+.tag-file { background: #f3e5f5; color: #7b1fa2; }
+.step { display: flex; margin: 8px 0; }
+.step-num { background: #4a90d9; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; flex-shrink: 0; margin-right: 12px; margin-top: 2px; }
+.step-content { flex: 1; font-size: 13px; }
+.chat-bubble { background: #f0f0f0; border-radius: 12px; padding: 8px 12px; margin: 4px 0; font-size: 13px; }
+.chat-bubble.tom { background: #e3f2fd; border-left: 3px solid #1976d2; }
+.chat-bubble.abigail { background: #f3e5f5; border-left: 3px solid #7b1fa2; }
+.chat-name { font-weight: bold; font-size: 12px; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>记忆系统实战</h1>
+<p class="subtitle">以 7 人中文仿真 zh-n7-day1 中 Tom Moreno 的真实数据为例</p>
+
+<h2>文件总览</h2>
+<div class="card card-blue">
+<pre style="background:#1a1a2e; font-size:13px;">
+personas/Tom Moreno/bootstrap_memory/
+├── scratch.json            ← 工作记忆
+├── spatial_memory.json     ← 空间记忆
+└── associative_memory/
+    ├── nodes.json          ← 长期记忆（413条）
+    ├── embeddings.json     ← 语义向量（176条）
+    └── kw_strength.json    ← 关键词计数
+</pre>
+</div>
+
+<div class="card">
+<h3>数据流</h3>
+<div class="flow">
+<strong>感知</strong> <span class="flow-arrow">→</span> nodes.json + embeddings.json（存新记忆）
+<br><span class="flow-arrow">↓</span> kw_strength.json（关键词+1）
+<br><span class="flow-arrow">↓</span> scratch.json（重要性计数递减）
+<br><span class="flow-arrow">↓</span> 递减到 0 时
+<br><strong>反思</strong> <span class="flow-arrow">→</span> embeddings.json（语义检索）→ nodes.json（存新想法）
+<br><span class="flow-arrow">↓</span>
+<br><strong>规划</strong> <span class="flow-arrow">→</span> scratch.json（更新日程）
+<br><span class="flow-arrow">↓</span>
+<br><strong>对话</strong> <span class="flow-arrow">→</span> nodes.json（存对话记录）
+</div>
+</div>
+
+<h2>一、scratch.json — 工作记忆</h2>
+
+<div class="card card-blue">
+<h3>身份与性格</h3>
+<pre>
+{
+  "name": "Tom Moreno",
+  "innate": "粗鲁、好斗、精力充沛",
+  "currently": "Tom Moreno 的周一从一场重要的会议开始。
+    他与 Isabella 在 2月13日上午10点于 Hobbs Cafe 会面，
+    讨论 Oak Hill College 项目..."
+}</pre>
+<p><code>innate</code> 是固定人设，<code>currently</code> 是 LLM 在仿真中不断更新的——不是预设的，是角色"活"出来的。</p>
+</div>
+
+<div class="card card-green">
+<h3>日程计划</h3>
+<pre>
+[
+  ["正在睡觉 (正在睡觉)", 420],
+  ["起床并完成晨间例行活动 (正在起床)", 5],
+  ["起床并完成晨间例行活动 (正在刷牙)", 5],
+  ["起床并完成晨间例行活动 (正在准备早餐)", 10],
+  ...
+]</pre>
+<p>每项是 <code>[行动描述, 持续分钟数]</code>。plan 模块通过 LLM 先生成小时级日程，再分解到分钟级。</p>
+</div>
+
+<div class="card card-orange">
+<h3>反思触发器</h3>
+<table>
+<tr><th>参数</th><th>当前值</th><th>含义</th></tr>
+<tr><td><code>importance_trigger_max</code></td><td>150</td><td>计数器最大值</td></tr>
+<tr><td><code>importance_trigger_curr</code></td><td>80</td><td>已消耗70点，还需80点触发反思</td></tr>
+<tr><td><code>importance_ele_n</code></td><td>29</td><td>自上次反思以来感知了29个事件</td></tr>
+</table>
+</div>
+
+<div class="card card-purple">
+<h3>当前行动</h3>
+<pre>
+{
+  "act_description": "联系 Klaus，商讨项目预算细节
+    (正在与 Klaus 讨论项目预算细节)",
+  "act_address": "the Ville:Hobbs Cafe:cafe:cafe customer seating"
+}</pre>
+</div>
+
+<h2>二、spatial_memory.json — 空间记忆</h2>
+
+<div class="card card-green">
+<p>Tom 知道的地方——只有去过或看到过的才会记住（共 11 个区域）：</p>
+<pre>
+{
+  "the Ville": {
+    "Moreno family's house": {
+      "common room": [...],
+      "Tom and Jane Moreno's bedroom": [...]
+    },
+    "The Willows Market and Pharmacy": { "store": [...] },
+    "Hobbs Cafe": {
+      "cafe": ["cafe customer seating", "behind the cafe counter"]
+    },
+    "Johnson Park": { "park": [...] },
+    "Oak Hill College": { "library": [...] }
+  }
+}</pre>
+<div class="highlight">这棵树影响行动选择——plan 模块问 LLM "Tom 应该去哪里"时，把可选地点列出来作为候选。Tom 不知道的地方他不会去。</div>
+</div>
+
+<h2>三、nodes.json — 长期记忆</h2>
+<p>Tom 的全部记忆，413 条，分三种类型：
+<span class="tag tag-event">event 事件 357条</span>
+<span class="tag tag-thought">thought 想法 52条</span>
+<span class="tag tag-chat">chat 对话 4条</span>
+</p>
+
+<div class="card card-blue">
+<h3><span class="tag tag-event">event</span> 事件 — 感知到的事实</h3>
+<pre>
+{
+  "node_count": 413,
+  "type": "event",
+  "subject": "Tom Moreno",
+  "predicate": "discuss",
+  "object": "项目预算细节",
+  "description": "Tom Moreno is 正在与 Klaus 讨论项目预算细节",
+  "poignancy": 5,
+  "keywords": ["Tom Moreno", "项目预算细节"],
+  "embedding_key": "Tom Moreno is 正在与 Klaus 讨论项目预算细节",
+  "filling": []
+}</pre>
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td><code>poignancy = 5</code></td><td>LLM 打的重要性分（1-10），中等偏高</td></tr>
+<tr><td><code>embedding_key</code></td><td>这段文字会被转成 2048 维向量</td></tr>
+<tr><td><code>filling = []</code></td><td>事件是第一手事实，没有证据链</td></tr>
+</table>
+</div>
+
+<div class="card card-purple">
+<h3><span class="tag tag-thought">thought</span> 想法 — 反思产生的认知</h3>
+<pre>
+{
+  "node_count": 384,
+  "type": "thought",
+  "depth": 1,
+  "description": "Tom Moreno was interested in Abigail Chen's
+    ideas about integrating digital art and animation
+    into the Oak Hill College project",
+  "poignancy": 4,
+  "filling": ["node_363"]
+}</pre>
+<div class="highlight"><strong>证据链：</strong><code>filling = ["node_363"]</code> → 这条想法来源于 node_363（和 Abigail 的对话）。想法不是凭空产生的，可以追溯到原始事件。</div>
+</div>
+
+<div class="card card-red">
+<h3><span class="tag tag-chat">chat</span> 对话 — 完整对话记录</h3>
+<pre>
+{
+  "node_count": 363,
+  "type": "chat",
+  "subject": "Tom Moreno",
+  "predicate": "chat with",
+  "object": "Abigail Chen",
+  "description": "talking to Abigail Chen and Isabella about
+    the Oak Hill College project...",
+  "filling": [
+    ["Tom Moreno", "Abigail，你好！真高兴在这里见到你..."],
+    ["Abigail Chen", "你好，Tom！是的，我正好是来参加..."],
+    ...14轮完整对话...
+  ]
+}</pre>
+<p>chat 节点的 <code>filling</code> 不是证据链，而是<strong>完整对话原文</strong>。</p>
+</div>
+
+<h2>四、embeddings.json — 语义向量</h2>
+
+<div class="card card-blue">
+<pre>
+{
+  "Tom Moreno is 正在与 Klaus 讨论项目预算细节":
+    [0.012, -0.034, 0.056, ...2048个浮点数],
+  "Tom Moreno is 正在准备联系 Klaus 的材料":
+    [-0.008, 0.021, 0.044, ...],
+  ...176条...
+}</pre>
+
+<h3>检索时怎么用</h3>
+<div class="step"><div class="step-num">1</div><div class="step-content">把当前情境 "Abigail Chen 走进 Hobbs Cafe" 转成 2048 维向量</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-content">和 Tom 的 176 条向量逐一算<strong>余弦相似度</strong></div></div>
+<div class="step"><div class="step-num">3</div><div class="step-content">"之前和 Isabella 讨论过 Oak Hill College 项目" 这条语义最接近</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-content">Tom "想起"了这件事 → 对话时主动提到了项目</div></div>
+
+<div class="highlight-blue">
+<strong>检索公式：</strong>score = 时近性×0.5 + <strong>相关性×3.0</strong> + 重要性×2.0<br>
+相关性（余弦相似度）权重最高——语义匹配优先。
+</div>
+</div>
+
+<h2>五、kw_strength.json — 关键词频次</h2>
+
+<div class="card card-orange">
+<pre>
+{
+  "kw_strength_event": {
+    "tom moreno": 63,
+    "cafe customer seating": 25,
+    "john lin": 21,
+    "abigail chen": 19,
+    "isabella rodriguez": 19
+  },
+  "kw_strength_thought": {
+    "tom moreno": 51,
+    "have": 9,
+    "work": 8,
+    "prepare": 7,
+    "meet": 7
+  }
+}</pre>
+<p>关键词计数超过阈值（默认 4）时，该主题被标记为"值得反思"。Tom 和 "isabella rodriguez"、"abigail chen" 相关的事件各 19 次——这些高频主题会被优先选为反思焦点。</p>
+</div>
+
+<h2>六、完整示例：Tom ↔ Abigail 对话全链路</h2>
+
+<div class="card card-blue">
+<h3>阶段 1：碰面前</h3>
+<p><span class="tag tag-file">spatial_memory.json</span> Tom 知道 Hobbs Cafe 的位置</p>
+<p><span class="tag tag-file">scratch.json</span> 日程里有 "上午 10 点在 Hobbs Cafe 与 Isabella 会面"</p>
+<p>plan 模块读取日程，驱动 Tom 走向 Hobbs Cafe</p>
+</div>
+
+<div class="card card-green">
+<h3>阶段 2：感知 Abigail</h3>
+<p>Tom 到达 Hobbs Cafe，视野内出现 Abigail Chen：</p>
+<div class="step"><div class="step-num">1</div><div class="step-content">扫描 vision_r=4 格内的 tile</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-content">检测到 "Abigail Chen 在 cafe customer seating"</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-content">调 embedding API 生成向量 → 存入 <span class="tag tag-file">embeddings.json</span></div></div>
+<div class="step"><div class="step-num">4</div><div class="step-content">调 LLM 打重要性分 → poignancy=4 → 存入 <span class="tag tag-file">nodes.json</span></div></div>
+<div class="step"><div class="step-num">5</div><div class="step-content">更新 <span class="tag tag-file">kw_strength.json</span>：abigail chen: 18 → 19</div></div>
+<div class="step"><div class="step-num">6</div><div class="step-content">更新 <span class="tag tag-file">scratch.json</span>：importance_trigger_curr -= 4</div></div>
+</div>
+
+<div class="card card-purple">
+<h3>阶段 3：决定是否交谈</h3>
+<div class="step"><div class="step-num">1</div><div class="step-content">用 "Abigail Chen 在 Hobbs Cafe" 查询 <span class="tag tag-file">embeddings.json</span></div></div>
+<div class="step"><div class="step-num">2</div><div class="step-content">找到语义最相关的记忆："Isabella 提到过 Abigail 参与 Oak Hill College 项目"</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-content">LLM 判断：是，应该和 Abigail 聊聊项目</div></div>
+</div>
+
+<div class="card card-red">
+<h3>阶段 4：对话（14 轮）</h3>
+<div class="chat-bubble tom"><div class="chat-name" style="color:#1976d2;">Tom Moreno</div>Abigail，你好！真高兴在这里见到你。我正在和 Isabella 讨论 Oak Hill College 项目，你也是来参加这个项目的吗？</div>
+<div class="chat-bubble abigail"><div class="chat-name" style="color:#7b1fa2;">Abigail Chen</div>你好，Tom！是的，我正好是来参加 Oak Hill College 项目的。你们已经开始讨论可能的解决方案了吗？</div>
+<div class="chat-bubble tom"><div class="chat-name" style="color:#1976d2;">Tom Moreno</div>是的，Isabella 正在整理项目预算的细节，而我准备了设备采购和人员培训的草案。你有什么特别关注的领域吗？</div>
+<div class="chat-bubble abigail"><div class="chat-name" style="color:#7b1fa2;">Abigail Chen</div>我对创意表达和技术实现特别感兴趣，尤其是数字艺术和动画方面的应用...</div>
+<p style="text-align:center; color:#999; font-size:12px;">...共 14 轮，最终约定明天下午 3 点在 Hobbs Cafe 再开会</p>
+</div>
+
+<div class="card card-orange">
+<h3>阶段 5：对话存储</h3>
+<div class="step"><div class="step-num">1</div><div class="step-content">14 轮完整对话存入 <span class="tag tag-file">nodes.json</span>（chat 节点 node_363）</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-content">对话摘要的向量存入 <span class="tag tag-file">embeddings.json</span></div></div>
+<div class="step"><div class="step-num">3</div><div class="step-content"><span class="tag tag-file">kw_strength.json</span> 中 "abigail chen" 计数 +1</div></div>
+<div class="step"><div class="step-num">4</div><div class="step-content"><span class="tag tag-file">scratch.json</span> 的 importance_trigger_curr 继续递减</div></div>
+</div>
+
+<div class="card card-blue">
+<h3>阶段 6：反思</h3>
+<p>当 <code>importance_trigger_curr ≤ 0</code> 时触发：</p>
+<div class="step"><div class="step-num">1</div><div class="step-content"><span class="tag tag-file">kw_strength.json</span> 发现 "abigail chen"、"oak hill college" 频繁出现</div></div>
+<div class="step"><div class="step-num">2</div><div class="step-content">用 <span class="tag tag-file">embeddings.json</span> 检索相关记忆</div></div>
+<div class="step"><div class="step-num">3</div><div class="step-content">LLM 生成想法：<em>"Tom 对 Abigail 将数字艺术融入项目的想法很感兴趣"</em></div></div>
+<div class="step"><div class="step-num">4</div><div class="step-content">新 thought 存入 <span class="tag tag-file">nodes.json</span>（node_384），filling → node_363</div></div>
+<div class="step"><div class="step-num">5</div><div class="step-content">重置 <span class="tag tag-file">scratch.json</span>：importance_trigger_curr = 150</div></div>
+</div>
+
+<div class="card card-green">
+<h3>阶段 7：影响未来行为</h3>
+<p>下次 Tom 做日程规划时，plan 模块检索到 node_383：</p>
+<div class="highlight"><em>"明天下午 3 点在 Hobbs Cafe 与 Isabella 和 Abigail 讨论预算"</em></div>
+<p>这条记忆被写入新的日程 → Tom 明天真的会去赴约。</p>
+<div class="highlight-blue"><strong>整个链路：</strong>感知 → 记忆 → 检索 → 对话 → 存储 → 反思 → 影响未来规划。没有中央调度，每个角色独立运行这个循环。</div>
+</div>
+
+<h2>七、核心概念</h2>
+
+<div class="card card-orange">
+<h3>涌现行为（Emergent Behavior）</h3>
+<p>没有代码告诉 Tom "你应该和 Abigail 讨论数字艺术"。这个行为来自独立决策的叠加：</p>
+<p>• Isabella 独立决定筹办 Oak Hill College 项目<br>
+• Tom 独立规划了去 Hobbs Cafe 开会<br>
+• Abigail 独立决定去 Hobbs Cafe 讨论项目<br>
+• 三人碰巧在同一地点相遇 → 对话自然发生</p>
+</div>
+
+<div class="card card-purple">
+<h3>重要性评分（Poignancy）</h3>
+<table>
+<tr><th>分数</th><th>实际例子</th></tr>
+<tr><td>1</td><td>bed is idle（家具状态）</td></tr>
+<tr><td>3</td><td>正在准备联系 Klaus 的材料</td></tr>
+<tr><td>5</td><td>正在与 Klaus 讨论项目预算细节</td></tr>
+<tr><td>6</td><td>和 Abigail 的完整对话记录</td></tr>
+</table>
+<p>两个用途：检索排序权重 + 累积触发反思</p>
+</div>
+
+<div class="card card-blue">
+<h3>证据链（Filling / Evidence）</h3>
+<pre>
+node_384 (thought): "Tom 对 Abigail 的数字艺术想法感兴趣"
+  └─ filling → node_363 (chat): Tom ↔ Abigail 的 14 轮对话
+</pre>
+<p>每条想法都有证据，可以追溯"为什么角色会这样想"。</p>
+</div>
+
+<div class="card card-green">
+<h3>注意力带宽 &amp; 记忆保留</h3>
+<table>
+<tr><th>参数</th><th>值</th><th>含义</th></tr>
+<tr><td>att_bandwidth</td><td>3</td><td>每步最多感知 3 个事件（模拟注意力有限性）</td></tr>
+<tr><td>retention</td><td>5</td><td>最近 5 步内已感知的事件不重复存储</td></tr>
+</table>
+</div>
+
+<h2>八、核心代码文件</h2>
+
+<div class="card">
+<h3>认知模块</h3>
+<p style="font-size:12px; color:#666;">位于 <code>reverie/backend_server/persona/cognitive_modules/</code></p>
+<table>
+<tr><th>文件</th><th>功能</th><th>读写文件</th></tr>
+<tr><td><code>perceive.py</code></td><td>感知环境，存储新事件</td><td>写 nodes/embeddings/kw_strength；写 scratch</td></tr>
+<tr><td><code>retrieve.py</code></td><td>三维加权检索记忆</td><td>读 nodes、embeddings</td></tr>
+<tr><td><code>plan.py</code></td><td>生成/调整日程</td><td>读 nodes；写 scratch</td></tr>
+<tr><td><code>reflect.py</code></td><td>从事件中提炼想法</td><td>读 kw_strength/embeddings；写 nodes</td></tr>
+<tr><td><code>execute.py</code></td><td>寻路和行动执行</td><td>读 scratch、spatial_memory</td></tr>
+<tr><td><code>converse.py</code></td><td>多轮对话生成</td><td>读 nodes/scratch；写 nodes</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>记忆结构</h3>
+<p style="font-size:12px; color:#666;">位于 <code>reverie/backend_server/persona/memory_structures/</code></p>
+<table>
+<tr><th>代码文件</th><th>对应数据文件</th></tr>
+<tr><td><code>associative_memory.py</code></td><td>nodes.json, embeddings.json, kw_strength.json</td></tr>
+<tr><td><code>scratch.py</code></td><td>scratch.json</td></tr>
+<tr><td><code>spatial_memory.py</code></td><td>spatial_memory.json</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>LLM 调用层</h3>
+<p style="font-size:12px; color:#666;">位于 <code>reverie/backend_server/persona/prompt_template/</code></p>
+<table>
+<tr><th>文件</th><th>功能</th></tr>
+<tr><td><code>gpt_structure.py</code></td><td>LLM API 调用、embedding 生成、结构化输出</td></tr>
+<tr><td><code>v2/*.py</code></td><td>日程生成、地点选择等 prompt</td></tr>
+<tr><td><code>v3_ChatGPT/*.py</code></td><td>对话生成、事件反应等 prompt</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>文件关系图</h3>
+<pre style="font-size:12px; line-height:1.6;">
+scratch.json ←→ plan (日程) / execute (行动) / perceive (触发器递减)
+
+spatial_memory.json ←→ plan (可选目的地) / perceive (发现新地点)
+
+nodes.json ← perceive (event) / reflect (thought) / converse (chat)
+           → retrieve (被检索) / plan+converse (作为 LLM 输入)
+
+embeddings.json ← perceive/reflect/converse (生成向量)
+                → retrieve (余弦相似度检索)
+
+kw_strength.json ← perceive (event关键词+1) / reflect (thought关键词+1)
+                 → reflect (判断哪些主题值得反思)
+</pre>
+</div>
+
+<p style="text-align:center; color:#999; font-size:11px; margin-top:24px;">
+agentic_collab · 基于 Stanford Generative Agents 论文 · 数据来自 zh-n7-day1 仿真
+</p>
+
+</div>
+</body>
+</html>
