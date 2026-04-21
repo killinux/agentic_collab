@@ -426,6 +426,9 @@
 		        		log_el.innerHTML += prefix + "<div><span style='color:" + color + ";font-weight:bold;'>" + speaker + ":</span> " + chat_content_raw[j][1] + "</div>";
 		        	}
 		        	log_el.parentElement.scrollTop = log_el.parentElement.scrollHeight;
+		        	document.getElementById("temp_focus").innerHTML = curr_persona_name;
+		        	let trigger = document.getElementById("on_screen_det_trigger-" + curr_persona_name);
+		        	if (trigger) trigger.click();
 		        }
 		      } else {
 		      	chat_content = "<em>暂无对话</em>"
