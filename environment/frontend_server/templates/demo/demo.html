@@ -67,6 +67,13 @@
 		</div>	
 
 
+		<div id="chat-log-panel" style="background-color:#1a1a2e; color:#eee; padding:1em 1.5em; border-radius:10px; margin-bottom:1.5em; max-height:300px; overflow-y:auto; font-size:0.95em; line-height:1.6;">
+			<div style="margin-bottom:0.5em; color:#888; font-size:0.85em;">对话记录（自动更新）</div>
+			<div id="chat-log-content" style="font-family: 'PingFang SC','Microsoft YaHei',sans-serif;">
+				<span style="color:#666;">等待对话中...</span>
+			</div>
+		</div>
+
 		{% for p in persona_names %}
 			<div class="media" id="on_screen_det_content-{{p.underscore}}" style="background-color:#EEEEEE; padding:1em; padding-left:3.5em; padding-right:2em; border-radius:10px; display: none;">
 			  <div class="media-left media-middle">

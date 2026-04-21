@@ -94,6 +94,7 @@
 	let execute_count = execute_count_max;
 	let movement_target = {};
 	let all_movement = {{ all_movement|safe }};
+	let chat_log_seen = {};
 
   let start_datetime =new Date(Date.parse("{{start_datetime}}"));
   var datetime_options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -406,9 +407,25 @@
 	        let chat_content_raw = all_movement[step][curr_persona_name.replace("_", " ")]["chat"];
 
 	        let chat_content = "";
-	        if (chat_content_raw != null ){
-		        for (let j=0; j<chat_content_raw.length; j++) { 
+	        if (chat_content_raw != null && chat_content_raw.length > 0) {
+		        for (let j=0; j<chat_content_raw.length; j++) {
 		        	chat_content += chat_content_raw[j][0] + ": " + chat_content_raw[j][1] + "<br>"
+		        }
+		        let chat_key = step + "_" + curr_persona_name;
+		        if (!(chat_key in chat_log_seen)) {
+		        	chat_log_seen[chat_key] = true;
+		        	let log_el = document.getElementById("chat-log-content");
+		        	if (log_el.querySelector("span")) log_el.innerHTML = "";
+		        	let step_time = new Date(start_datetime.getTime() + step * 10 * 1000);
+		        	let time_str = step_time.toLocaleTimeString("zh-CN", {hour:"2-digit", minute:"2-digit"});
+		        	let colors = ["#64b5f6","#81c784","#ffb74d","#f06292","#ba68c8","#4dd0e1","#fff176"];
+		        	for (let j=0; j<chat_content_raw.length; j++) {
+		        		let speaker = chat_content_raw[j][0];
+		        		let color = colors[Object.keys(personas).indexOf(speaker.replace(" ","_")) % colors.length] || "#aaa";
+		        		let prefix = j==0 ? "<div style='margin-top:0.8em;color:#888;font-size:0.8em;'>🕐 " + time_str + " (步" + step + ")</div>" : "";
+		        		log_el.innerHTML += prefix + "<div><span style='color:" + color + ";font-weight:bold;'>" + speaker + ":</span> " + chat_content_raw[j][1] + "</div>";
+		        	}
+		        	log_el.parentElement.scrollTop = log_el.parentElement.scrollHeight;
 		        }
 		      } else {
 		      	chat_content = "<em>暂无对话</em>"
