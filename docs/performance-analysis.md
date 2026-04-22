@@ -180,11 +180,212 @@ GLM 有时返回格式不对的响应，系统重试最多 5 次。
 
 ---
 
-## 当前建议
+## AI 作为瓶颈：核心矛盾
+
+### 问题本质
+
+Generative Agents 的架构设计假设 LLM 调用是"廉价"的——论文用的是 GPT-3.5 时代的 API，延迟 ~0.3 秒，成本低。但在实际部署中（尤其是用 GLM-4-plus），每次调用 3-5 秒，这个假设不再成立。
+
+核心矛盾是：**多人交互是仿真最有价值的部分，但恰恰是 LLM 调用最密集的部分。**
+
+```
+仿真价值 ∝ 角色交互数量
+LLM 调用 ∝ 角色交互数量²
+实际速度 ∝ 1 / LLM 调用数量
+
+→ 仿真越有价值，跑得越慢
+```
+
+### 实测数据佐证（zh-n7-day1-ext，28 小时运行）
+
+| 阶段 | 角色密度 | LLM 调用/步 | 速度 | 对话产出 |
+|---|---|---|---|---|
+| 0:00-8:20（睡觉→起床） | 0-2 人活跃 | 0-3 次 | 3000 步/h | 0 场 |
+| 8:20-10:16（分散活动） | 7 人分散 | ~10 次 | 200 步/h | 0 场 |
+| 10:16-12:35（Hobbs Cafe 聚集） | 4 人同地 | ~25 次 | 8 步/h | **6 场** |
+
+所有有价值的内容（6 场对话、涌现行为）都发生在最慢的阶段。
+
+### 这不只是 GLM 的问题
+
+换成 GPT-4o-mini（延迟 ~0.5 秒）能快 5 倍，但 O(n²) 的架构问题仍然存在：
+- 7 人聚集：从 8 步/h → ~40 步/h（仍然很慢）
+- 25 人聚集：从不可行 → 仍然不可行
+
+**必须同时解决架构问题和延迟问题。**
+
+---
+
+## 工程优化方案（附代码示例）
+
+### 优化 1：社交冷却机制（最优先）
+
+最近 N 步内聊过的角色对，跳过 `decide_to_talk`。
+
+```python
+# cognitive_modules/converse.py 或 perceive.py 中添加
+# 在调用 generate_decide_to_talk 之前：
+
+CHAT_COOLDOWN_STEPS = 30  # 5 分钟冷却
+
+if last_chat_step.get((persona_a, persona_b), -999) > current_step - CHAT_COOLDOWN_STEPS:
+    return False  # 跳过，不调 LLM
+```
+
+改动：~20 行。4 人聚集场景从 12 次调用降到 3-4 次。
+
+### 优化 2：静态 poignancy 缓存
+
+```python
+# gpt_structure.py 或 perceive.py 中添加
+
+STATIC_POIGNANCY = {}
+
+def get_poignancy_cached(description):
+    # idle 事件永远是 1 分
+    if "idle" in description.lower():
+        return 1
+    # 检查缓存
+    if description in STATIC_POIGNANCY:
+        return STATIC_POIGNANCY[description]
+    # 调 LLM
+    score = generate_poig_score(description)
+    STATIC_POIGNANCY[description] = score
+    return score
+```
+
+改动：~10 行。减少 30-40% 的 poignancy LLM 调用。
+
+### 优化 3：批量社交判断
+
+把多对角色的判断合成一次 LLM 调用：
+
+```python
+# 当前：6 对 = 6 次 LLM 调用
+for pair in all_pairs:
+    should_talk = generate_decide_to_talk(pair)  # 每次 3-5 秒
+
+# 优化后：6 对 = 1 次 LLM 调用
+prompt = """以下角色都在 Hobbs Cafe，请判断哪些对应该交谈。
+返回 JSON 数组，1=应该交谈，0=不需要。
+
+1. Isabella Rodriguez ↔ Tom Moreno
+2. Isabella Rodriguez ↔ Klaus Mueller
+3. Isabella Rodriguez ↔ Abigail Chen
+4. Tom Moreno ↔ Klaus Mueller
+5. Tom Moreno ↔ Abigail Chen
+6. Klaus Mueller ↔ Abigail Chen
+
+返回格式：{"decisions": [1, 0, 1, 0, 0, 0]}"""
+```
+
+改动：~50 行。6 次调用 → 1 次，聚集场景提速 4-5 倍。
+
+### 优化 4：asyncio 角色并行
+
+```python
+# reverie.py 主循环改造
+
+import asyncio
+
+async def process_persona_async(persona, maze):
+    perceived = await perceive_async(persona, maze)
+    retrieved = await retrieve_async(persona, perceived)
+    await plan_async(persona, retrieved)
+    if reflection_trigger(persona):
+        await reflect_async(persona)
+    execute(persona, maze)  # 本地计算，不需要 async
+
+# 每步并行处理所有角色
+async def run_step(personas, maze):
+    await asyncio.gather(*[
+        process_persona_async(p, maze) for p in personas
+    ])
+```
+
+改动：~100 行（需要把 LLM 调用改成 async）。7 人并行理论 7 倍，实际受 API 并发限制约 3-4 倍。
+
+### 优化 5：分层模型策略
+
+```python
+# gpt_structure.py 中添加模型路由
+
+TASK_MODEL_MAP = {
+    "poignancy":        "glm-4-flash",     # 简单评分，用快模型
+    "pronunciatio":     "glm-4-flash",     # 表情符号，用快模型
+    "decide_to_talk":   "glm-4-flash",     # 是/否判断，用快模型
+    "action_event":     "glm-4-flash",     # SPO 三元组，用快模型
+    "conversation":     "glm-4-plus",      # 对话生成，用大模型
+    "daily_plan":       "glm-4-plus",      # 日程规划，用大模型
+    "reflection":       "glm-4-plus",      # 反思洞察，用大模型
+}
+
+def get_model_for_task(task_type):
+    return TASK_MODEL_MAP.get(task_type, "glm-4-plus")
+```
+
+改动：~50 行。简单任务延迟从 3-5 秒降到 0.5-1 秒，整体提速 2-3 倍。
+
+### 优化 6：本地 embedding
+
+```python
+# gpt_structure.py 中替换 get_embedding
+
+from sentence_transformers import SentenceTransformer
+
+_local_model = None
+
+def get_embedding(text):
+    global _local_model
+    if _local_model is None:
+        _local_model = SentenceTransformer(
+            'paraphrase-multilingual-MiniLM-L12-v2'
+        )
+    text = text.replace("\n", " ")
+    if not text:
+        text = "this is blank"
+    return _local_model.encode(text).tolist()
+    # 本地计算 ~10ms，无网络延迟
+```
+
+改动：~20 行（+安装依赖）。消除全部 embedding 网络延迟。需要 GPU 或性能较好的 CPU。
+
+---
+
+## 综合收益估算
+
+| 优化组合 | 4 人聚集 | 7 人分散 | 改动量 |
+|---|---|---|---|
+| 当前基线 | 8 步/h | 200 步/h | — |
+| +冷却+缓存 | 25 步/h | 260 步/h | 30 行 |
+| +批量社交 | 50 步/h | 260 步/h | +50 行 |
+| +asyncio 并行 | 150 步/h | 800 步/h | +100 行 |
+| +分层模型 | 400 步/h | 1500 步/h | +50 行 |
+| +本地 embedding | 500 步/h | 2000 步/h | +20 行 |
+| **全部优化** | **500 步/h** | **2000 步/h** | **~250 行** |
+
+全部优化后，当前 28 小时跑 4500 步的工作量可以在 **~3 小时**内完成。25 人完整一天（8640 步）预计 **15-20 小时**可行。
+
+---
+
+## 推荐实施顺序
+
+| 优先级 | 优化 | 改动 | 收益 | 风险 |
+|---|---|---|---|---|
+| **P0** | 社交冷却机制 | 20 行 | 聚集场景 3 倍 | 极低 |
+| **P0** | 静态 poignancy 缓存 | 10 行 | 全局 20% | 极低 |
+| **P1** | 批量社交判断 | 50 行 | 聚集场景 5 倍 | 低（需测试 prompt） |
+| **P1** | 分层模型 | 50 行 | 全局 2-3 倍 | 低（需验证小模型质量） |
+| **P2** | asyncio 并行 | 100 行 | 全局 3-4 倍 | 中（需重构主循环） |
+| **P3** | 本地 embedding | 20 行 | 消除 embedding 延迟 | 低（需安装依赖+验证精度） |
+
+---
+
+## 当前决策
 
 **本轮不优化**，原因：
-1. 7 人版已经能产出有意义的结果（3 场对话、涌现行为验证通过）
-2. 优化需要大量测试确保不破坏认知行为的正确性
-3. 先积累更多仿真经验，确认哪些优化最有价值再动手
+1. 7 人版已产出 6 场对话、完整涌现行为链路，验证了系统能力
+2. 优化需要测试确保不破坏认知行为的正确性
+3. 先积累仿真经验，确认哪些优化最有价值
 
-**下一步可以优先做**：社交判断冷却机制（20 行代码，聚集场景提速 2-3 倍），收益最大、风险最低。
+**下次迭代优先做 P0**（冷却+缓存，共 30 行），可以立即将聚集场景速度从 8 步/h 提升到 ~25 步/h。
